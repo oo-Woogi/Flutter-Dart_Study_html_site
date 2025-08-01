@@ -227,6 +227,50 @@
             color: #9ca3af;
         }
         @import url('https://cdn.jsdelivr.net/gh/wan2land/d2coding/css/d2coding.css');
+        /* Light-mode variation for the coffee support box so it differs from dark mode */
+        :root:not(.dark) .coffee-support-card {
+          background-color: #f0f4f8; /* lighter background in light mode */
+          border-color: #cbd5e1; /* softer border */
+        }
+        :root:not(.dark) .coffee-support-card h2 {
+          color: #1f3d6e; /* deeper blue for title in light mode */
+        }
+        :root:not(.dark) .coffee-support-card p {
+          color: #475569; /* slightly darker gray for description */
+        }
+
+        /* Enhanced animated background for coffee support card (both light and dark) */
+        .coffee-support-card {
+          position: relative; /* ensure overlay positioning */
+          overflow: hidden;
+        }
+        .coffee-support-card::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, #ffe066, #ffdd88, #ffd700, #ffecb3);
+          background-size: 300% 300%;
+          filter: brightness(1.1);
+          animation: gradientShift 8s ease infinite;
+          mix-blend-mode: overlay;
+          opacity: 0.8;
+          pointer-events: none;
+          border-radius: inherit;
+        }
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        /* Floating coffee beans (emoji) */
+        .bean {
+          position: absolute;
+          font-size: 16px;
+          pointer-events: none;
+          user-select: none;
+          opacity: 0;
+          will-change: transform, opacity;
+        }
     </style>
     <script>
         // Tailwind CSS 다크 모드 설정을 위해 이 스크립트는 필요합니다.
@@ -235,6 +279,99 @@
           darkMode: 'class',
         }
       </script>
+    <script id="login-control">
+  function showLoginBox() {
+    const loginBox = document.getElementById('login-box');
+    const content = document.getElementById('content');
+    if (loginBox) loginBox.style.display = 'flex';
+    if (content) content.style.display = 'none';
+  }
+
+  function checkPassword() {
+    const input = document.getElementById('password');
+    const neon = document.getElementById('neon-success');
+    const errorMsg = document.getElementById('error-msg');
+    const loginBox = document.getElementById('login-box');
+    const content = document.getElementById('content');
+    if (!input || !loginBox || !content) return;
+    const pwd = input.value.trim();
+    if (pwd === '0307') {
+      errorMsg.textContent = '';
+      sessionStorage.setItem('authenticated', 'true');
+      if (neon) {
+        neon.style.display = 'block';
+        neon.style.animation = 'none';
+        void neon.offsetWidth;
+        neon.style.animation = 'neonGlow 2.5s ease forwards';
+      }
+      loginBox.style.display = 'none';
+      content.style.display = 'block';
+    } else {
+      errorMsg.textContent = '비밀번호가 틀렸습니다.';
+      if (loginBox) {
+        loginBox.classList.add('shake');
+        setTimeout(() => loginBox.classList.remove('shake'), 300);
+      }
+    }
+  }
+
+  function isReloadNavigation(event) {
+    const navEntries = performance.getEntriesByType('navigation');
+    const perfReload = (navEntries.length && navEntries[0].type === 'reload') || (performance.navigation && performance.navigation.type === 1);
+    return perfReload || (event && event.type === 'pageshow' && !event.persisted);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const loginBox = document.getElementById('login-box');
+    const content = document.getElementById('content');
+    const neon = document.getElementById('neon-success');
+
+    // 내부 이동 클릭시 세션 유지 플래그
+    document.querySelectorAll('a[href^="?page="]').forEach(a => {
+      a.addEventListener('click', () => {
+        sessionStorage.setItem('skipNextForceLogin', 'true');
+      });
+    });
+
+    // 초기 상태 반영
+    if (sessionStorage.getItem('authenticated') === 'true') {
+      if (loginBox) loginBox.style.display = 'none';
+      if (content) content.style.display = 'block';
+      if (neon) neon.style.display = 'block';
+    } else {
+      showLoginBox();
+    }
+
+    // pageshow: 새로고침 또는 직접 진입 감지
+    window.addEventListener('pageshow', (e) => {
+      const skip = sessionStorage.getItem('skipNextForceLogin') === 'true';
+      const reloadDetected = isReloadNavigation(e);
+      console.log('[LOGIN CONTROL] pageshow, reloadDetected:', reloadDetected, 'skip flag:', skip);
+      if (reloadDetected && !skip) {
+        sessionStorage.removeItem('authenticated');
+        showLoginBox();
+      }
+      sessionStorage.removeItem('skipNextForceLogin');
+    });
+
+    const pwdInput = document.getElementById('password');
+    if (pwdInput) {
+      pwdInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { checkPassword(); } });
+    }
+
+    const logoutBtn = document.getElementById('logout-button');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        if (document.getElementById('password')) document.getElementById('password').value = '';
+        if (document.getElementById('error-msg')) document.getElementById('error-msg').textContent = '';
+        if (content) content.style.display = 'none';
+        if (loginBox) loginBox.style.display = 'flex';
+        sessionStorage.removeItem('authenticated');
+      });
+    }
+    window.checkPassword = checkPassword;
+  });
+</script>
 </head>
 <body class="bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-200">
 
@@ -333,7 +470,8 @@
                 열정을 가지고 모두 성공하는 길을 걷도록 해봅시다.
             </p>
             <div class="mt-6 flex justify-center">
-              <div class="bg-slate-800 border border-gray-700 rounded-xl p-6 shadow-lg max-w-xl w-full flex flex-col items-center gap-4 relative">
+              <div class="bg-slate-800 border border-gray-700 rounded-xl p-6 shadow-lg max-w-xl w-full flex flex-col items-center gap-4 relative coffee-support-card">
+                <div id="bean-container" aria-hidden="true" style="position:absolute; inset:0; overflow:hidden; pointer-events:none;"></div>
                 <div class="flex-1 w-full text-center">
                   <h2 class="text-2xl font-extrabold mb-1" style="background: linear-gradient(90deg,#22d3ee,#a855f7); -webkit-background-clip: text; color: transparent;">개발자에게 커피 한 잔 사주기</h2>
                   <p class="text-base text-slate-300 leading-relaxed max-w-prose mx-auto" style="margin-bottom:4px;">공부에 도움이 되었다면 아래의 버튼을 눌러 QR코드를 스캔하여 후원해 주세요.</p>
@@ -345,9 +483,9 @@
                   <div style="display:flex; flex-direction:column; align-items:center; gap:8px; margin-top:16px; width:100%;">
                     <div style="background:#f1f5f9; border-radius:12px; padding:12px; display:inline-flex; flex-direction:column; align-items:center; border:1px solid #d1d5db;">
                       <img src="kakaopay_qr.png" alt="카카오페이 QR코드" width="200" style="border:1px solid #ccc; border-radius:10px;">
-                      <p style="font-size:13px; color:#cbd5e1; margin:6px 0 0;">재욱</p>
+                      <p style="font-size:13px; color:#cbd5e1; margin:6px 0 0;">o_o_woogi</p>
                     </div>
-                    <p style="font-size:13px; color:#e2e8f0; margin:0;">스캔해서 후원해 주세요.</p>
+                    <p class="text-base text-slate-400 dark:text-slate-300" style="margin:0; font-size:13px;">커피가 없다면... 다음 업데이트가 없을지도 몰라요...</p>
                   </div>
                 </div>
               </div>
@@ -357,6 +495,7 @@
               document.addEventListener('DOMContentLoaded', () => {
                 const coffeeBtn = document.getElementById('coffee-button');
                 const qrContainer = document.getElementById('qr-container');
+                const beanContainer = document.getElementById('bean-container');
                 if (!coffeeBtn || !qrContainer) return;
                 let expanded = false;
                 coffeeBtn.addEventListener('click', (e) => {
@@ -369,6 +508,35 @@
                     expanded = false;
                   }
                 });
+
+                // Floating beans animation (always active, both themes)
+                function createBean() {
+                  if (!beanContainer) return;
+                  const bean = document.createElement('div');
+                  bean.className = 'bean';
+                  bean.textContent = '☕';
+                  const left = Math.random() * 60 + 20; // avoid extreme edges
+                  bean.style.left = left + '%';
+                  bean.style.bottom = '10%';
+                  // initial style before animation
+                  bean.style.transition = 'transform 6s linear, opacity 6s linear';
+                  beanContainer.appendChild(bean);
+                  // trigger animation in next frame
+                  requestAnimationFrame(() => {
+                    bean.style.opacity = '1';
+                    bean.style.transform = 'translateY(-140px) scale(1.1)';
+                  });
+                  // fade out near end
+                  setTimeout(() => { bean.style.opacity = '0'; }, 5200);
+                  // cleanup
+                  setTimeout(() => { bean.remove(); }, 6500);
+                }
+                // start periodic beans
+                const beanInterval = setInterval(createBean, 1400);
+                // initial burst
+                for (let i = 0; i < 4; i++) {
+                  setTimeout(createBean, i * 300);
+                }
               });
             </script>
         </section>
